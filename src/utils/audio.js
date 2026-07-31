@@ -1,4 +1,4 @@
-// Multi-Engine Audio System with Local Offline MP3 Assets + Online TTS & SpeechSynthesis Fallbacks
+// Online Audio System with Google TTS Stream & Web Speech Fallback
 
 class SoundSystem {
   constructor() {
@@ -126,56 +126,34 @@ class SoundSystem {
     }
   }
 
-  speakThai(text, consonantId = null, onStart = null, onEnd = null) {
-    // Flexible argument structure
-    if (typeof consonantId === 'function') {
-      onEnd = onStart;
-      onStart = consonantId;
-      consonantId = null;
+  speakThai(text, arg2, arg3, arg4) {
+    let onStart = arg2;
+    let onEnd = arg3;
+
+    if (typeof arg2 === 'number' || arg2 === null) {
+      onStart = arg3;
+      onEnd = arg4;
     }
 
     if (this.muted) {
-      if (onEnd) onEnd();
+      if (onEnd && typeof onEnd === 'function') onEnd();
       return;
     }
 
     this.stopAllAudio();
     this.playSfx('audioPlay');
 
-    if (onStart) onStart();
+    if (onStart && typeof onStart === 'function') onStart();
 
     let hasHandledEnd = false;
     const done = () => {
       if (!hasHandledEnd) {
         hasHandledEnd = true;
         this.currentAudio = null;
-        if (onEnd) onEnd();
+        if (onEnd && typeof onEnd === 'function') onEnd();
       }
     };
 
-    // Strategy 1: Local Offline MP3 File (/audio/${consonantId}.mp3)
-    if (consonantId && consonantId >= 1 && consonantId <= 44) {
-      const localMp3Url = `/audio/${consonantId}.mp3`;
-      const audio = new Audio(localMp3Url);
-      this.currentAudio = audio;
-
-      audio.onended = done;
-
-      audio.onerror = () => {
-        this.currentAudio = null;
-        this.playOnlineFallback(text, done);
-      };
-
-      const promise = audio.play();
-      if (promise !== undefined) {
-        promise.catch(() => {
-          audio.onerror();
-        });
-      }
-      return;
-    }
-
-    // Strategy 2: Online Stream Fallback
     this.playOnlineFallback(text, done);
   }
 
@@ -203,7 +181,7 @@ class SoundSystem {
 
   speakSpeechSynthesis(text, onEnd) {
     if (!('speechSynthesis' in window)) {
-      if (onEnd) onEnd();
+      if (onEnd && typeof onEnd === 'function') onEnd();
       return;
     }
 
@@ -222,12 +200,12 @@ class SoundSystem {
         utterance.voice = thaiVoice;
       }
 
-      utterance.onend = () => { if (onEnd) onEnd(); };
-      utterance.onerror = () => { if (onEnd) onEnd(); };
+      utterance.onend = () => { if (onEnd && typeof onEnd === 'function') onEnd(); };
+      utterance.onerror = () => { if (onEnd && typeof onEnd === 'function') onEnd(); };
 
       window.speechSynthesis.speak(utterance);
     } catch (err) {
-      if (onEnd) onEnd();
+      if (onEnd && typeof onEnd === 'function') onEnd();
     }
   }
 }
