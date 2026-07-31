@@ -1,10 +1,17 @@
-// Multi-Engine Audio System with ResponsiveVoice + Google TTS + Web Speech Fallbacks
+// Resilient Thai Audio System with Multi-Source HTML5 Audio & SpeechSynthesis Fallback
 
 class SoundSystem {
   constructor() {
     this.audioCtx = null;
     this.muted = false;
     this.currentAudio = null;
+    this.voicesLoaded = false;
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        this.voicesLoaded = true;
+      };
+    }
   }
 
   initContext() {
@@ -28,14 +35,11 @@ class SoundSystem {
   }
 
   stopAllAudio() {
-    if (window.responsiveVoice && typeof window.responsiveVoice.cancel === 'function') {
-      window.responsiveVoice.cancel();
-    }
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
     }
-    if ('speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
   }
@@ -138,78 +142,81 @@ class SoundSystem {
     this.stopAllAudio();
     this.playSfx('audioPlay');
 
-    let finished = false;
-    const handleEnd = () => {
-      if (!finished) {
-        finished = true;
-        this.currentAudio = null;
-        if (onEnd) onEnd();
-      }
-    };
-
     if (onStart) onStart();
 
-    // Strategy 1: ResponsiveVoice Engine (Guaranteed Thai Female Voice across all devices)
-    if (window.responsiveVoice && typeof window.responsiveVoice.speak === 'function') {
-      try {
-        window.responsiveVoice.speak(text, "Thai Female", {
-          rate: 0.85,
-          pitch: 1.0,
-          onstart: () => {},
-          onend: handleEnd,
-          onerror: () => this.fallbackAudioStream(text, handleEnd)
-        });
-        return;
-      } catch (err) {
-        console.warn("ResponsiveVoice failed, trying fallbacks...", err);
-      }
-    }
+    const encoded = encodeURIComponent(text);
+    // Primary audio source: Google Translate TTS API (gtx client)
+    const primaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=gtx`;
+    // Secondary audio source: Google Translate TTS API (tw-ob client)
+    const secondaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=tw-ob`;
 
-    // Fallback Strategies
-    this.fallbackAudioStream(text, handleEnd);
-  }
+    const tryPlayUrl = (url, fallbackNext) => {
+      const audio = new Audio(url);
+      this.currentAudio = audio;
 
-  fallbackAudioStream(text, handleEnd) {
-    // Strategy 2: Google Translate Audio MP3 Stream
-    const encodedText = encodeURIComponent(text);
-    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=th&client=tw-ob`;
-
-    const audio = new Audio(audioUrl);
-    this.currentAudio = audio;
-
-    audio.onended = handleEnd;
-
-    audio.onerror = () => {
-      // Strategy 3: Web Speech Synthesis API (SpeechSynthesisUtterance)
-      if ('speechSynthesis' in window) {
-        try {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = 'th-TH';
-          utterance.rate = 0.85;
-          utterance.pitch = 1.1;
-
-          const voices = window.speechSynthesis.getVoices();
-          const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
-          if (thaiVoice) {
-            utterance.voice = thaiVoice;
-          }
-
-          utterance.onend = handleEnd;
-          utterance.onerror = handleEnd;
-
-          window.speechSynthesis.speak(utterance);
-        } catch (e) {
-          handleEnd();
+      let hasHandledEnd = false;
+      const done = () => {
+        if (!hasHandledEnd) {
+          hasHandledEnd = true;
+          this.currentAudio = null;
+          if (onEnd) onEnd();
         }
-      } else {
-        handleEnd();
+      };
+
+      audio.onended = done;
+
+      audio.onerror = () => {
+        this.currentAudio = null;
+        if (!hasHandledEnd) {
+          hasHandledEnd = true;
+          fallbackNext();
+        }
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          audio.onerror();
+        });
       }
     };
 
-    audio.play().catch(() => {
-      audio.onerror();
+    // Chain: Primary URL -> Secondary URL -> Web Speech Synthesis
+    tryPlayUrl(primaryUrl, () => {
+      tryPlayUrl(secondaryUrl, () => {
+        this.speakSpeechSynthesis(text, onEnd);
+      });
     });
+  }
+
+  speakSpeechSynthesis(text, onEnd) {
+    if (!('speechSynthesis' in window)) {
+      if (onEnd) onEnd();
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'th-TH';
+      utterance.rate = 0.85;
+      utterance.pitch = 1.0;
+
+      const voices = window.speechSynthesis.getVoices();
+      const thaiVoice = voices.find(
+        (v) => v.lang === 'th-TH' || v.lang === 'th_TH' || v.lang.startsWith('th')
+      );
+      if (thaiVoice) {
+        utterance.voice = thaiVoice;
+      }
+
+      utterance.onend = () => { if (onEnd) onEnd(); };
+      utterance.onerror = () => { if (onEnd) onEnd(); };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      if (onEnd) onEnd();
+    }
   }
 }
 
