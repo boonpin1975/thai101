@@ -1,17 +1,10 @@
-// Resilient Thai Audio System with Multi-Source HTML5 Audio & SpeechSynthesis Fallback
+// Multi-Engine Audio System with Local Offline MP3 Assets + Online TTS & SpeechSynthesis Fallbacks
 
 class SoundSystem {
   constructor() {
     this.audioCtx = null;
     this.muted = false;
     this.currentAudio = null;
-    this.voicesLoaded = false;
-
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        this.voicesLoaded = true;
-      };
-    }
   }
 
   initContext() {
@@ -133,7 +126,14 @@ class SoundSystem {
     }
   }
 
-  speakThai(text, onStart, onEnd) {
+  speakThai(text, consonantId = null, onStart = null, onEnd = null) {
+    // Flexible argument structure
+    if (typeof consonantId === 'function') {
+      onEnd = onStart;
+      onStart = consonantId;
+      consonantId = null;
+    }
+
     if (this.muted) {
       if (onEnd) onEnd();
       return;
@@ -144,49 +144,61 @@ class SoundSystem {
 
     if (onStart) onStart();
 
-    const encoded = encodeURIComponent(text);
-    // Primary audio source: Google Translate TTS API (gtx client)
-    const primaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=gtx`;
-    // Secondary audio source: Google Translate TTS API (tw-ob client)
-    const secondaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=tw-ob`;
+    let hasHandledEnd = false;
+    const done = () => {
+      if (!hasHandledEnd) {
+        hasHandledEnd = true;
+        this.currentAudio = null;
+        if (onEnd) onEnd();
+      }
+    };
 
-    const tryPlayUrl = (url, fallbackNext) => {
-      const audio = new Audio(url);
+    // Strategy 1: Local Offline MP3 File (/audio/${consonantId}.mp3)
+    if (consonantId && consonantId >= 1 && consonantId <= 44) {
+      const localMp3Url = `/audio/${consonantId}.mp3`;
+      const audio = new Audio(localMp3Url);
       this.currentAudio = audio;
-
-      let hasHandledEnd = false;
-      const done = () => {
-        if (!hasHandledEnd) {
-          hasHandledEnd = true;
-          this.currentAudio = null;
-          if (onEnd) onEnd();
-        }
-      };
 
       audio.onended = done;
 
       audio.onerror = () => {
         this.currentAudio = null;
-        if (!hasHandledEnd) {
-          hasHandledEnd = true;
-          fallbackNext();
-        }
+        this.playOnlineFallback(text, done);
       };
 
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
+      const promise = audio.play();
+      if (promise !== undefined) {
+        promise.catch(() => {
           audio.onerror();
         });
       }
+      return;
+    }
+
+    // Strategy 2: Online Stream Fallback
+    this.playOnlineFallback(text, done);
+  }
+
+  playOnlineFallback(text, done) {
+    const encoded = encodeURIComponent(text);
+    const primaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=gtx`;
+
+    const audio = new Audio(primaryUrl);
+    this.currentAudio = audio;
+
+    audio.onended = done;
+
+    audio.onerror = () => {
+      this.currentAudio = null;
+      this.speakSpeechSynthesis(text, done);
     };
 
-    // Chain: Primary URL -> Secondary URL -> Web Speech Synthesis
-    tryPlayUrl(primaryUrl, () => {
-      tryPlayUrl(secondaryUrl, () => {
-        this.speakSpeechSynthesis(text, onEnd);
+    const promise = audio.play();
+    if (promise !== undefined) {
+      promise.catch(() => {
+        audio.onerror();
       });
-    });
+    }
   }
 
   speakSpeechSynthesis(text, onEnd) {

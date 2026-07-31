@@ -42,9 +42,10 @@ export const ConsonantCard = ({
   const handlePlayAudio = (e) => {
     e.stopPropagation();
     setIsPlayingAudio(true);
-    // Speak both character and vocabulary word: e.g. "ก ไก่"
+    // Speak both character and vocabulary word using local MP3 audio
     soundSystem.speakThai(
       `${consonant.char} ${consonant.vocabThai}`,
+      consonant.id,
       () => setIsPlayingAudio(true),
       () => setIsPlayingAudio(false)
     );

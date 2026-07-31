@@ -32,7 +32,7 @@ export const AudioQuizGame = () => {
 
     // Play target audio
     setTimeout(() => {
-      soundSystem.speakThai(`${target.char} ${target.vocabThai}`);
+      soundSystem.speakThai(`${target.char} ${target.vocabThai}`, target.id);
     }, 200);
   };
 
@@ -121,7 +121,7 @@ export const AudioQuizGame = () => {
         {/* Audio Replay Trigger Card */}
         <div className="flex flex-col items-center justify-center p-8 bg-white border-2 border-sky-200 rounded-3xl shadow-cartoon mb-8">
           <button
-            onClick={() => soundSystem.speakThai(`${targetConsonant.char} ${targetConsonant.vocabThai}`)}
+            onClick={() => soundSystem.speakThai(`${targetConsonant.char} ${targetConsonant.vocabThai}`, targetConsonant.id)}
             className="flex items-center gap-3 px-6 py-4 text-base sm:text-lg font-black text-white bg-gradient-to-r from-sky-400 to-indigo-500 border-2 border-sky-600 rounded-2xl shadow-cartoon btn-cartoon-push animate-bounce-gentle"
           >
             <Volume2 className="w-7 h-7" />

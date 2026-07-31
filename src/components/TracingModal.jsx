@@ -164,7 +164,7 @@ export const TracingModal = ({
             </button>
 
             <button
-              onClick={() => soundSystem.speakThai(`${consonant.char} ${consonant.vocabThai}`)}
+              onClick={() => soundSystem.speakThai(`${consonant.char} ${consonant.vocabThai}`, consonant.id)}
               className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-sky-700 bg-sky-100 border border-sky-300 rounded-xl hover:bg-sky-200"
             >
               <Volume2 className="w-3.5 h-3.5" />

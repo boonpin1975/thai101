@@ -81,7 +81,7 @@ export const ConsonantGrid = ({
                 <div
                   key={item.id}
                   onClick={() => {
-                    soundSystem.speakThai(`${item.char} ${item.vocabThai}`);
+                    soundSystem.speakThai(`${item.char} ${item.vocabThai}`, item.id);
                     onOpenTracing(item);
                   }}
                   className={`relative flex flex-col items-center justify-between p-3.5 bg-white rounded-2xl border-2 transition-all cursor-pointer shadow-cartoon-sm hover:-translate-y-1 hover:shadow-cartoon ${

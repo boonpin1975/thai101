@@ -37,7 +37,7 @@ export const MatchingGame = () => {
   const handleSelectConsonant = (item) => {
     if (matchedPairs.includes(item.id)) return;
     soundSystem.playSfx('pop');
-    soundSystem.speakThai(`${item.char} ${item.vocabThai}`);
+    soundSystem.speakThai(`${item.char} ${item.vocabThai}`, item.id);
     setSelectedConsonant(item);
     checkMatch(item, selectedMatch);
   };
