@@ -1,9 +1,10 @@
-// Web Audio API Synthesizer & SpeechSynthesis Helper for Thai Alphabet Learning
+// Web Audio API Synthesizer & Dual-Engine Speech Audio (Google Translate TTS + SpeechSynthesis Fallback)
 
 class SoundSystem {
   constructor() {
     this.audioCtx = null;
     this.muted = false;
+    this.currentAudio = null;
   }
 
   initContext() {
@@ -20,7 +21,20 @@ class SoundSystem {
 
   toggleMute() {
     this.muted = !this.muted;
+    if (this.muted) {
+      this.stopAllAudio();
+    }
     return this.muted;
+  }
+
+  stopAllAudio() {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio = null;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
   }
 
   playSfx(type) {
@@ -119,41 +133,61 @@ class SoundSystem {
       return;
     }
 
+    this.stopAllAudio();
     this.playSfx('audioPlay');
 
-    if (!('speechSynthesis' in window)) {
-      console.warn("SpeechSynthesis not supported in browser.");
-      if (onEnd) setTimeout(onEnd, 1000);
-      return;
-    }
+    let finished = false;
 
-    window.speechSynthesis.cancel(); // Stop previous speech
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'th-TH';
-    utterance.rate = 0.85; // Slightly slower for clear beginner listening
-    utterance.pitch = 1.1; // Friendly pitch
-
-    // Try to find a specific Thai voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
-    if (thaiVoice) {
-      utterance.voice = thaiVoice;
-    }
-
-    utterance.onstart = () => {
-      if (onStart) onStart();
+    const handleEnd = () => {
+      if (!finished) {
+        finished = true;
+        this.currentAudio = null;
+        if (onEnd) onEnd();
+      }
     };
 
-    utterance.onend = () => {
-      if (onEnd) onEnd();
+    if (onStart) onStart();
+
+    // Strategy 1: High quality Google Translate Thai TTS Stream
+    const encodedText = encodeURIComponent(text);
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=th&client=tw-ob`;
+
+    const audio = new Audio(audioUrl);
+    this.currentAudio = audio;
+
+    audio.onended = handleEnd;
+    
+    audio.onerror = () => {
+      // Fallback Strategy 2: Web Speech Synthesis (SpeechSynthesisUtterance)
+      if ('speechSynthesis' in window) {
+        try {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'th-TH';
+          utterance.rate = 0.85;
+          utterance.pitch = 1.1;
+
+          const voices = window.speechSynthesis.getVoices();
+          const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'));
+          if (thaiVoice) {
+            utterance.voice = thaiVoice;
+          }
+
+          utterance.onend = handleEnd;
+          utterance.onerror = handleEnd;
+
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          handleEnd();
+        }
+      } else {
+        handleEnd();
+      }
     };
 
-    utterance.onerror = () => {
-      if (onEnd) onEnd();
-    };
-
-    window.speechSynthesis.speak(utterance);
+    audio.play().catch(() => {
+      // Browser autoplay restriction or offline fallback to SpeechSynthesis
+      audio.onerror();
+    });
   }
 }
 
