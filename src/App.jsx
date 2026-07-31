@@ -220,13 +220,19 @@ export function App() {
       />
 
       {/* Footer */}
-      <footer className="mt-16 text-center text-xs font-semibold text-slate-500">
-        <div className="flex items-center justify-center gap-1 mb-1">
+      <footer className="mt-16 mb-6 text-center text-xs sm:text-sm font-bold text-slate-500">
+        <div className="flex items-center justify-center gap-1.5 mb-2 text-slate-800 font-extrabold text-sm sm:text-base">
+          <span>Built by</span>
+          <span className="px-3 py-1 text-xs sm:text-sm font-black text-sky-900 bg-sky-100/90 rounded-full border-2 border-sky-300 shadow-cartoon-sm">
+            PinangTech ✨
+          </span>
+        </div>
+        <div className="flex items-center justify-center gap-1 mb-1 text-slate-500">
           <span>Made with</span>
           <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
           <span>for Thai Language Learners</span>
         </div>
-        <p className="opacity-75">
+        <p className="text-[11px] opacity-75">
           Learn the 44 Thai Consonants • Kor Kai to Hor Nok-huk
         </p>
       </footer>
