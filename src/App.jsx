@@ -9,7 +9,7 @@ import { MatchingGame } from './components/MatchingGame';
 import { AudioQuizGame } from './components/AudioQuizGame';
 import { AchievementsModal } from './components/AchievementsModal';
 import { soundSystem } from './utils/audio';
-import { Sparkles, Gamepad2, Volume2, BookOpen, Heart } from 'lucide-react';
+import { Sparkles, Gamepad2, Volume2, BookOpen, Heart, Award } from 'lucide-react';
 
 export function App() {
   // LocalStorage Persisted State
@@ -104,7 +104,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen pb-16 font-english">
+    <div className="min-h-screen pb-24 sm:pb-16 font-english">
       
       {/* Navigation Header */}
       <Header
@@ -114,8 +114,8 @@ export function App() {
         unlockedCount={masteredIds.length}
       />
 
-      {/* Main Mode Navigation Tabs */}
-      <div className="max-w-6xl px-4 mx-auto mb-6">
+      {/* Main Mode Navigation Tabs (Desktop & Tablet) */}
+      <div className="hidden sm:block max-w-6xl px-4 mx-auto mb-6">
         <div className="flex items-center justify-center p-1.5 bg-white/80 backdrop-blur border-3 border-sky-200 rounded-3xl shadow-cartoon-sm max-w-xl mx-auto gap-1">
           <button
             onClick={() => {
@@ -230,6 +230,61 @@ export function App() {
           Learn the 44 Thai Consonants • Kor Kai to Hor Nok-huk
         </p>
       </footer>
+
+      {/* Mobile Bottom Sticky Navigation Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 block sm:hidden p-2 bg-white/90 backdrop-blur border-t-3 border-sky-300 shadow-cartoon pb-safe">
+        <div className="flex items-center justify-around">
+          <button
+            onClick={() => {
+              soundSystem.playSfx('pop');
+              setActiveTab('learn');
+            }}
+            className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${
+              activeTab === 'learn' ? 'text-sky-600 bg-sky-50 font-black' : 'text-slate-500 font-bold'
+            }`}
+          >
+            <BookOpen className="w-5 h-5" />
+            <span className="text-[10px]">Cards</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundSystem.playSfx('pop');
+              setActiveTab('matching');
+            }}
+            className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${
+              activeTab === 'matching' ? 'text-amber-600 bg-amber-50 font-black' : 'text-slate-500 font-bold'
+            }`}
+          >
+            <Gamepad2 className="w-5 h-5" />
+            <span className="text-[10px]">Match Game</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundSystem.playSfx('pop');
+              setActiveTab('audioQuiz');
+            }}
+            className={`flex flex-col items-center gap-1 p-2 rounded-2xl transition-all ${
+              activeTab === 'audioQuiz' ? 'text-purple-600 bg-purple-50 font-black' : 'text-slate-500 font-bold'
+            }`}
+          >
+            <Volume2 className="w-5 h-5" />
+            <span className="text-[10px]">Audio Quiz</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundSystem.playSfx('pop');
+              setIsAchievementsOpen(true);
+            }}
+            className="flex flex-col items-center gap-1 p-2 text-slate-500 rounded-2xl font-bold"
+          >
+            <Award className="w-5 h-5 text-amber-500" />
+            <span className="text-[10px]">Badges ({masteredIds.length})</span>
+          </button>
+        </div>
+      </div>
 
     </div>
   );

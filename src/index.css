@@ -18,6 +18,12 @@
     overflow-x: hidden;
     margin: 0;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent 300ms touch delay on mobile tap targets */
+  button, a, input, select, canvas {
+    touch-action: manipulation;
   }
 }
 
@@ -118,7 +124,21 @@
 
 /* Custom Glassmorphism Header */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 3px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Mobile Scrollbar Hide & Safe Area Padding */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
