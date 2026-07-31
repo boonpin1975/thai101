@@ -232,8 +232,11 @@ export function App() {
           <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
           <span>for Thai Language Learners</span>
         </div>
-        <p className="text-[11px] opacity-75">
+        <p className="text-[11px] opacity-75 mb-1">
           Learn the 44 Thai Consonants • Kor Kai to Hor Nok-huk
+        </p>
+        <p className="text-[11px] font-bold text-slate-400">
+          © {new Date().getFullYear()} All rights reserved by Khor Boon Pin
         </p>
       </footer>
 
