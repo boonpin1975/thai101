@@ -1,10 +1,11 @@
-// Online Audio System with Google TTS Stream & Web Speech Fallback
+// Robust Fetch-Blob Audio System for Instant Thai Speech Pronunciation
 
 class SoundSystem {
   constructor() {
     this.audioCtx = null;
     this.muted = false;
     this.currentAudio = null;
+    this.blobCache = new Map(); // Cache audio blobs for instant re-play
   }
 
   initContext() {
@@ -29,7 +30,10 @@ class SoundSystem {
 
   stopAllAudio() {
     if (this.currentAudio) {
-      this.currentAudio.pause();
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+      } catch (e) {}
       this.currentAudio = null;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -126,7 +130,7 @@ class SoundSystem {
     }
   }
 
-  speakThai(text, arg2, arg3, arg4) {
+  async speakThai(text, arg2, arg3, arg4) {
     let onStart = arg2;
     let onEnd = arg3;
 
@@ -154,33 +158,64 @@ class SoundSystem {
       }
     };
 
-    this.playOnlineFallback(text, done);
+    // Check if we have cached blob URL
+    if (this.blobCache.has(text)) {
+      const blobUrl = this.blobCache.get(text);
+      this.playBlobUrl(blobUrl, done, text);
+      return;
+    }
+
+    const encoded = encodeURIComponent(text);
+    const urls = [
+      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=tw-ob`,
+      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=gtx`
+    ];
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const blob = await res.blob();
+          if (blob.size > 500) {
+            const blobUrl = URL.createObjectURL(blob);
+            this.blobCache.set(text, blobUrl);
+            this.playBlobUrl(blobUrl, done, text);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Fetch audio blob failed, trying next source:", err);
+      }
+    }
+
+    // Fallback strategy if fetch fails
+    this.speakSpeechSynthesis(text, done);
   }
 
-  playOnlineFallback(text, done) {
-    const encoded = encodeURIComponent(text);
-    const primaryUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=gtx`;
+  playBlobUrl(blobUrl, done, text) {
+    try {
+      const audio = new Audio(blobUrl);
+      this.currentAudio = audio;
 
-    const audio = new Audio(primaryUrl);
-    this.currentAudio = audio;
+      audio.onended = done;
+      audio.onerror = () => {
+        this.speakSpeechSynthesis(text, done);
+      };
 
-    audio.onended = done;
-
-    audio.onerror = () => {
-      this.currentAudio = null;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn("Blob audio play error, falling back to speech synthesis:", err);
+          this.speakSpeechSynthesis(text, done);
+        });
+      }
+    } catch (e) {
       this.speakSpeechSynthesis(text, done);
-    };
-
-    const promise = audio.play();
-    if (promise !== undefined) {
-      promise.catch(() => {
-        audio.onerror();
-      });
     }
   }
 
   speakSpeechSynthesis(text, onEnd) {
-    if (!('speechSynthesis' in window)) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (onEnd && typeof onEnd === 'function') onEnd();
       return;
     }
