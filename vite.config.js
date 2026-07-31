@@ -11,11 +11,31 @@ export default defineConfig({
   server: {
     port: 5000,
     host: '0.0.0.0',
-    allowedHosts: ['thai.natkitchen.shop', '.natkitchen.shop', 'localhost']
+    allowedHosts: ['thai.natkitchen.shop', '.natkitchen.shop', 'localhost'],
+    proxy: {
+      '/api/tts': {
+        target: 'https://translate.google.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/tts/, '/translate_tts'),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        }
+      }
+    }
   },
   preview: {
     port: 5000,
     host: '0.0.0.0',
-    allowedHosts: ['thai.natkitchen.shop', '.natkitchen.shop', 'localhost']
+    allowedHosts: ['thai.natkitchen.shop', '.natkitchen.shop', 'localhost'],
+    proxy: {
+      '/api/tts': {
+        target: 'https://translate.google.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/tts/, '/translate_tts'),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        }
+      }
+    }
   }
 })

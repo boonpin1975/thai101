@@ -1,11 +1,11 @@
-// Robust Fetch-Blob Audio System for Instant Thai Speech Pronunciation
+// Audio System with Server TTS Proxy + SpeechSynthesis Fallback
 
 class SoundSystem {
   constructor() {
     this.audioCtx = null;
     this.muted = false;
     this.currentAudio = null;
-    this.blobCache = new Map(); // Cache audio blobs for instant re-play
+    this.audioCache = new Map();
   }
 
   initContext() {
@@ -130,7 +130,7 @@ class SoundSystem {
     }
   }
 
-  async speakThai(text, arg2, arg3, arg4) {
+  speakThai(text, arg2, arg3, arg4) {
     let onStart = arg2;
     let onEnd = arg3;
 
@@ -158,59 +158,26 @@ class SoundSystem {
       }
     };
 
-    // Check if we have cached blob URL
-    if (this.blobCache.has(text)) {
-      const blobUrl = this.blobCache.get(text);
-      this.playBlobUrl(blobUrl, done, text);
-      return;
-    }
-
     const encoded = encodeURIComponent(text);
-    const urls = [
-      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=tw-ob`,
-      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=th&client=gtx`
-    ];
+    const primaryUrl = `/api/tts?ie=UTF-8&q=${encoded}&tl=th&client=tw-ob`;
 
-    for (const url of urls) {
-      try {
-        const res = await fetch(url);
-        if (res.ok) {
-          const blob = await res.blob();
-          if (blob.size > 500) {
-            const blobUrl = URL.createObjectURL(blob);
-            this.blobCache.set(text, blobUrl);
-            this.playBlobUrl(blobUrl, done, text);
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("Fetch audio blob failed, trying next source:", err);
-      }
-    }
+    const audio = new Audio(primaryUrl);
+    this.currentAudio = audio;
 
-    // Fallback strategy if fetch fails
-    this.speakSpeechSynthesis(text, done);
-  }
+    audio.onended = done;
 
-  playBlobUrl(blobUrl, done, text) {
-    try {
-      const audio = new Audio(blobUrl);
-      this.currentAudio = audio;
-
-      audio.onended = done;
-      audio.onerror = () => {
-        this.speakSpeechSynthesis(text, done);
-      };
-
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn("Blob audio play error, falling back to speech synthesis:", err);
-          this.speakSpeechSynthesis(text, done);
-        });
-      }
-    } catch (e) {
+    audio.onerror = () => {
+      this.currentAudio = null;
+      // Fallback Strategy: Web Speech Synthesis API
       this.speakSpeechSynthesis(text, done);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn("Proxy audio playback blocked/error, trying fallback:", err);
+        audio.onerror();
+      });
     }
   }
 
