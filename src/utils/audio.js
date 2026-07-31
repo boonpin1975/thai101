@@ -1,4 +1,4 @@
-// Web Audio API Synthesizer & Dual-Engine Speech Audio (Google Translate TTS + SpeechSynthesis Fallback)
+// Multi-Engine Audio System with ResponsiveVoice + Google TTS + Web Speech Fallbacks
 
 class SoundSystem {
   constructor() {
@@ -28,6 +28,9 @@ class SoundSystem {
   }
 
   stopAllAudio() {
+    if (window.responsiveVoice && typeof window.responsiveVoice.cancel === 'function') {
+      window.responsiveVoice.cancel();
+    }
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
@@ -70,7 +73,6 @@ class SoundSystem {
         osc.start(now);
         osc.stop(now + 0.12);
       } else if (type === 'correct') {
-        // C major chord triad chime (C5, E5, G5)
         [523.25, 659.25, 783.99].forEach((freq, idx) => {
           const osc = this.audioCtx.createOscillator();
           const gain = this.audioCtx.createGain();
@@ -137,7 +139,6 @@ class SoundSystem {
     this.playSfx('audioPlay');
 
     let finished = false;
-
     const handleEnd = () => {
       if (!finished) {
         finished = true;
@@ -148,7 +149,28 @@ class SoundSystem {
 
     if (onStart) onStart();
 
-    // Strategy 1: High quality Google Translate Thai TTS Stream
+    // Strategy 1: ResponsiveVoice Engine (Guaranteed Thai Female Voice across all devices)
+    if (window.responsiveVoice && typeof window.responsiveVoice.speak === 'function') {
+      try {
+        window.responsiveVoice.speak(text, "Thai Female", {
+          rate: 0.85,
+          pitch: 1.0,
+          onstart: () => {},
+          onend: handleEnd,
+          onerror: () => this.fallbackAudioStream(text, handleEnd)
+        });
+        return;
+      } catch (err) {
+        console.warn("ResponsiveVoice failed, trying fallbacks...", err);
+      }
+    }
+
+    // Fallback Strategies
+    this.fallbackAudioStream(text, handleEnd);
+  }
+
+  fallbackAudioStream(text, handleEnd) {
+    // Strategy 2: Google Translate Audio MP3 Stream
     const encodedText = encodeURIComponent(text);
     const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=th&client=tw-ob`;
 
@@ -156,11 +178,12 @@ class SoundSystem {
     this.currentAudio = audio;
 
     audio.onended = handleEnd;
-    
+
     audio.onerror = () => {
-      // Fallback Strategy 2: Web Speech Synthesis (SpeechSynthesisUtterance)
+      // Strategy 3: Web Speech Synthesis API (SpeechSynthesisUtterance)
       if ('speechSynthesis' in window) {
         try {
+          window.speechSynthesis.cancel();
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.lang = 'th-TH';
           utterance.rate = 0.85;
@@ -176,7 +199,7 @@ class SoundSystem {
           utterance.onerror = handleEnd;
 
           window.speechSynthesis.speak(utterance);
-        } catch (err) {
+        } catch (e) {
           handleEnd();
         }
       } else {
@@ -185,7 +208,6 @@ class SoundSystem {
     };
 
     audio.play().catch(() => {
-      // Browser autoplay restriction or offline fallback to SpeechSynthesis
       audio.onerror();
     });
   }
